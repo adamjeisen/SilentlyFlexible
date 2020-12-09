@@ -1,6 +1,6 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from networks import RandomNetwork, SensorySpikingNetwork
+
 
 class Simulation():
     def __init__(self, T=1000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10, gamma=0.35, alpha=2100,
@@ -38,7 +38,7 @@ class Simulation():
         # zero out anything beyond 3 standard deviations
         s_ext[dist_from_mean > 3 * self.sigma] = 0
 
-        net = 0 # TODO: Make this a randomly selected network?
+        net = 0  # TODO: Make this a randomly selected network?
         s_ext_all = np.zeros((self.N_sensory_nets, self.N_sensory))
         s_ext_all[net] = s_ext
         s_ext_all = s_ext_all.reshape(self.N_sensory * self.N_sensory_nets)
@@ -76,10 +76,9 @@ class Simulation():
         # initialize weight matrices
         self.W_ff, self.W_fb = self._create_weight_matrices()
 
-
         # reset sensory networks
         for i, sens_net in enumerate(self.sens_nets):
-            sens_net.reset(W_fb=self.W_fb[i*self.N_sensory: (i+1) * self.N_sensory, :])
+            sens_net.reset(W_fb=self.W_fb[i * self.N_sensory: (i + 1) * self.N_sensory, :])
 
         # reset random network
         self.rand_net.reset(W_ff=self.W_ff)
@@ -150,8 +149,8 @@ class Simulation():
         # extend input to be T timesteps and only nonzero for 100 ts
         s_ext_T = np.broadcast_to(self.s_ext, (self.T, self.N_sensory * self.N_sensory_nets)).copy()
         # stimulus is presented for 100 ms
-        stim_T = int(10/0.1)
-        s_ext_T[100+stim_T:] = 0
+        stim_T = int(10 / 0.1)
+        s_ext_T[100 + stim_T:] = 0
         s_ext_T[:100] = 0
         # s_ext_T *= 0
 
@@ -168,7 +167,7 @@ class Simulation():
             p_rand_T[t] = step['p_rand']
 
         p_sens_T = p_sens_T.reshape(self.T, self.N_sensory_nets, self.N_sensory)
-        s_ext_T  = s_ext_T.reshape(self.T, self.N_sensory_nets, self.N_sensory)
+        s_ext_T = s_ext_T.reshape(self.T, self.N_sensory_nets, self.N_sensory)
         r_sens_T = r_sens_T.reshape(self.T, self.N_sensory_nets, self.N_sensory)
         s_sens_T = s_sens_T.reshape(self.T, self.N_sensory_nets, self.N_sensory)
 
@@ -183,49 +182,7 @@ class Simulation():
         )
 
 
-def plot_r_sens(run_results, **kwargs):
-    _plot_sens(key='r_sens', run_results=run_results, **kwargs)
-
-
-def plot_s_sens(run_results, **kwargs):
-    _plot_sens(key='s_sens', run_results=run_results, **kwargs)
-
-def plot_p_sens(run_results, **kwargs):
-    _plot_sens(key='p_sens', run_results=run_results, **kwargs)
-
-
-def plot_r_rand(run_results, **kwargs):
-    _plot_rand(key='r_rand', run_results=run_results, **kwargs)
-
-
-def plot_s_rand(run_results, **kwargs):
-    _plot_rand(key='s_rand', run_results=run_results, **kwargs)
-
-
-def plot_p_rand(run_results, **kwargs):
-    _plot_rand(key='p_rand', run_results=run_results, **kwargs)
-
-
-
-def plot_s_ext(run_results, **kwargs):
-    _plot_sens(key='s_ext', run_results=run_results, **kwargs)
-
-
-def _plot_rand(key, run_results):
-    plt.imshow(run_results[key].T)
-    plt.colorbar()
-    plt.show()
-
-
-def _plot_sens(key, run_results, sens_idx=0, title=''):
-    plt.imshow(run_results[key][:, sens_idx, :].T)
-    plt.title(title)
-    plt.colorbar()
-    plt.show()
-
 if __name__ == '__main__':
     sim = Simulation(T=1000, N_sensory_nets=1, N_sensory=512, N_rand=1024, amp_ext=500)
     sim.reset()
     run_results = sim.run()
-    print('done')
-
