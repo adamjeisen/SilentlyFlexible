@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.linalg import toeplitz
 class SynapticSpikingNetwork():
-    def __init__(self, N=512, tau=10, dt=.1, tau_d=10, tau_f=10, u_init=.1):
+    def __init__(self, N=512, tau=10, dt=1, tau_d=10, tau_f=10, u_init=.1):
 
         self.W_rec = None  # recurrent weight matrix
         self.W_other = None # feedforward/back weight matrix

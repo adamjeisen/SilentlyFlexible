@@ -1,6 +1,6 @@
 import numpy as np
 from synaptic_networks import SensorySynapticNetwork, RandomSynapticNetwork
-
+from utils import save
 
 class Simulation():
     def __init__(self, T=10000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10, gamma=0.35, alpha=2100,
@@ -223,7 +223,8 @@ class Simulation():
 
 
 if __name__ == '__main__':
-    sim = Simulation(T=1000, N_sensory_nets=8, N_sensory=512, N_rand=1024, amp_ext=300)
+    sim = Simulation(T=650, N_sensory_nets=8, N_sensory=512, N_rand=1024, amp_ext=300)
     sim.reset(mus=[256])
+    save(simulation=sim, run_results={})
     run_results = sim.run()
-    print('done')
+    save(simulation=sim, run_results=run_results)
