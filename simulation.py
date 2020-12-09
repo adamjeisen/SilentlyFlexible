@@ -23,6 +23,7 @@ class Simulation():
         self.sens_nets = None
         self.rand_net = None
         self.W_ff = None
+        self.mus = None
         self.W_fb = None
 
     def _create_s_ext(self):
@@ -42,7 +43,10 @@ class Simulation():
         s_ext_all = np.zeros((self.N_sensory_nets, self.N_sensory))
         s_ext_all[net] = s_ext
         s_ext_all = s_ext_all.reshape(self.N_sensory * self.N_sensory_nets)
-        return s_ext_all
+        return dict(
+            s_ext=s_ext_all,
+            mus=mus
+        )
 
     def _create_weight_matrices(self):
         # initialize which connections are excitatory in the feed forward matrix (sample from Bernoulli)
@@ -66,7 +70,9 @@ class Simulation():
 
     def reset(self):
         # initialize sensory input
-        self.s_ext = self._create_s_ext()
+        input_dict = self._create_s_ext()
+        self.s_ext = input_dict['s_ext']
+        self.mus = input_dict['mus']
         # initialize sensory networks
 
         self.sens_nets = [SensorySpikingNetwork(N=self.N_sensory, **self.sens_net_kwargs) for i in
@@ -172,6 +178,10 @@ class Simulation():
         s_sens_T = s_sens_T.reshape(self.T, self.N_sensory_nets, self.N_sensory)
 
         return dict(
+            n_sensory=self.N_sensory,
+            n_rand=self.N_rand,
+            mus=self.mus,
+            sigma=self.sigma,
             s_ext=s_ext_T,
             s_sens=s_sens_T,
             r_sens=r_sens_T,
