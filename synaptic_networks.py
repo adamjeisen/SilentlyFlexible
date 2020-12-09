@@ -16,8 +16,8 @@ class SynapticSpikingNetwork():
 
         self.u_init = u_init
 
-    def tanh(self, x):
-        return 0.4 * (1 + np.tanh(0.4 * x - 3))
+    def phi(self, x):
+        return (0.4/self.tau) * (1 + np.tanh(0.4 * x - 3))
 
     def reset(self, W_rec, W_other):
         if W_rec is None:
@@ -43,8 +43,8 @@ class SynapticSpikingNetwork():
             raise ValueError('s_other should not be None')
         if s_rec is None:  # random network
             s_rec = np.zeros((self.N,))
-        r = self.tanh(self.W_rec @ s_rec + self.W_other @ s_other + s_ext)
-        p = np.random.rand(self.N, ) < (r * self.dt / self.tau)
+        r = self.phi(self.W_rec @ s_rec + self.W_other @ s_other + s_ext)
+        p = np.random.rand(self.N, ) < (r * self.dt)
         delta_s = (-s_rec) / self.tau + p
         s = s_rec + self.dt * delta_s
         self.u, self.x = self._forward_calcium(p_other)
@@ -86,7 +86,7 @@ class SensorySynapticNetwork(SynapticSpikingNetwork):
         angle = 2. * np.pi * np.arange(1, self.N + 1) / self.N
 
         def weight_intrapool(i):
-            return 0.28 + 2 * np.exp(1 * (np.cos(i) - 1)) - 2 * np.exp(0.25 * (np.cos(i) - 1))
+            return self.lamb + self.A * np.exp(self.k1 * (np.cos(i) - 1)) - self.A * np.exp(self.k2 * (np.cos(i) - 1))
 
         w = np.zeros((self.N, self.N))
         for i in range(self.N):
