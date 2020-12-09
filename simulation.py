@@ -1,6 +1,5 @@
 import numpy as np
-from networks import RandomNetwork, SensorySpikingNetwork
-
+from synaptic_networks import SensorySynapticNetwork, RandomSynapticNetwork
 
 class Simulation():
     def __init__(self, T=1000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10, gamma=0.35, alpha=2100,
@@ -75,10 +74,10 @@ class Simulation():
         self.mus = input_dict['mus']
         # initialize sensory networks
 
-        self.sens_nets = [SensorySpikingNetwork(N=self.N_sensory, **self.sens_net_kwargs) for i in
+        self.sens_nets = [SensorySynapticNetwork(N=self.N_sensory, **self.sens_net_kwargs) for i in
                           range(self.N_sensory_nets)]
         # initialize random network
-        self.rand_net = RandomNetwork(N=self.N_rand)
+        self.rand_net = RandomSynapticNetwork(N=self.N_rand)
         # initialize weight matrices
         self.W_ff, self.W_fb = self._create_weight_matrices()
 
@@ -89,13 +88,14 @@ class Simulation():
         # reset random network
         self.rand_net.reset(W_ff=self.W_ff)
 
-    def forward(self, s_ext, s_rand_prev, s_sens_prev):
+    def forward(self, s_ext, s_rand_prev, s_sens_prev, p_rand_prev):
         """
         Single timestep forward
         s_ext: External inputs (N_sensory_nets * N_sensory, 1)
         s_rand: Synaptic activations of random network at t - 1 (N_rand, 1)
         s_sens: Synaptic activations of sensory networks at t - 1 (N_sensory_nets * N_sensory, 1)
         """
+
 
         # reshaping input to sensory networks
         s_ext = s_ext.reshape(self.N_sensory_nets, self.N_sensory)
@@ -106,13 +106,19 @@ class Simulation():
         r_sens = np.zeros((self.N_sensory_nets, self.N_sensory))
         p_sens = np.zeros((self.N_sensory_nets, self.N_sensory))
 
+        # initializing empty array to hold synaptic feedforward variables
+        u_fb = np.zeros((self.N_sensory_nets, self.N_sensory, self.N_rand))
+        x_fb = np.zeros((self.N_sensory_nets, self.N_sensory, self.N_rand))
+
         # forward step for all sensory networks
-        # print('Forward pass through sensory networks')
         for i, sens_net in enumerate(self.sens_nets):
-            sens_step = sens_net.forward(s_ext=s_ext[i], s_rec=s_sens_prev[i], s_rand=s_rand_prev)
+            sens_step = sens_net.forward(s_ext=s_ext[i], s_rec=s_sens_prev[i], s_rand=s_rand_prev, p_rand=p_rand_prev)
             s_sens[i] = sens_step['s']
             r_sens[i] = sens_step['r']
             p_sens[i] = sens_step['p']
+            u_fb[i] = sens_step['u']
+            x_fb[i] = sens_step['x']
+
 
         # reshaping sensory network activity into a one-dimensional array for random network
         s_sens = s_sens.reshape(self.N_sensory_nets * self.N_sensory, )
@@ -120,13 +126,18 @@ class Simulation():
         r_sens = r_sens.reshape(self.N_sensory_nets * self.N_sensory, )
 
         # forward step for random network
-        # print('Forward pass through random network')
-        rand_step = self.rand_net.forward(s_sens=s_sens, s_rec=s_rand_prev)
+        rand_step = self.rand_net.forward(s_sens=s_sens, s_rec=s_rand_prev, p_sens=p_sens)
         s_rand = rand_step['s']
         r_rand = rand_step['r']
         p_rand = rand_step['p']
+        u_ff = rand_step['u']
+        x_ff = rand_step['x']
 
         return dict(
+            u_ff=u_ff,
+            u_fb=u_fb,
+            x_ff=x_ff,
+            x_fb=x_fb,
             s_sens=s_sens,
             p_sens=p_sens,
             r_sens=r_sens,
@@ -139,6 +150,12 @@ class Simulation():
         """
         Runs through entire simulation
         """
+        # intializing synaptic variables matrices
+        u_fb = np.zeros((self.T, self.N_sensory_nets, self.N_sensory, self.N_rand))
+        u_ff = np.zeros((self.T, self.N_rand, self.N_sensory * self.N_sensory_nets))
+        x_fb = np.zeros((self.T, self.N_sensory_nets, self.N_sensory, self.N_rand))
+        x_ff = np.zeros((self.T, self.N_rand, self.N_sensory * self.N_sensory_nets))
+
         # initializing random network activity
         s_rand_T = np.zeros((self.T, self.N_rand))
         p_rand_T = np.zeros((self.T, self.N_rand))
@@ -161,16 +178,23 @@ class Simulation():
         # s_ext_T *= 0
 
         for t in range(1, self.T):
+            if (t + 1) % 100 == 0:
+                print(f'step {t} of {self.T}')
             s_sens_prev = s_sens_T[t - 1]
             s_rand_prev = s_rand_T[t - 1]
+            p_rand_prev = p_rand_T[t - 1]
             s_ext = s_ext_T[t - 1]
-            step = self.forward(s_ext=s_ext, s_rand_prev=s_rand_prev, s_sens_prev=s_sens_prev)
+            step = self.forward(s_ext=s_ext, s_rand_prev=s_rand_prev, s_sens_prev=s_sens_prev, p_rand_prev=p_rand_prev)
             s_sens_T[t] = step['s_sens']
             p_sens_T[t] = step['p_sens']
             r_sens_T[t] = step['r_sens']
             s_rand_T[t] = step['s_rand']
             r_rand_T[t] = step['r_rand']
             p_rand_T[t] = step['p_rand']
+            u_ff[t] = step['u_ff']
+            u_fb[t] = step['u_fb']
+            x_ff[t] = step['x_ff']
+            x_fb[t] = step['x_fb']
 
         p_sens_T = p_sens_T.reshape(self.T, self.N_sensory_nets, self.N_sensory)
         s_ext_T = s_ext_T.reshape(self.T, self.N_sensory_nets, self.N_sensory)
@@ -178,6 +202,10 @@ class Simulation():
         s_sens_T = s_sens_T.reshape(self.T, self.N_sensory_nets, self.N_sensory)
 
         return dict(
+            u_ff=u_ff,
+            u_fb=u_fb,
+            x_ff=x_ff,
+            x_fb=x_fb,
             n_sensory=self.N_sensory,
             n_rand=self.N_rand,
             mus=self.mus,
@@ -193,6 +221,7 @@ class Simulation():
 
 
 if __name__ == '__main__':
-    sim = Simulation(T=1000, N_sensory_nets=1, N_sensory=512, N_rand=1024, amp_ext=500)
+    sim = Simulation(T=800, N_sensory_nets=8, N_sensory=512, N_rand=1024, amp_ext=500)
     sim.reset()
     run_results = sim.run()
+    print('done')
