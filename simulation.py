@@ -3,7 +3,7 @@ import numpy as np
 from networks import RandomNetwork, SensorySpikingNetwork
 
 class Simulation():
-    def __init__(self, T=1000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10, gamma=0.35, alpha=2100,
+    def __init__(self, T=10000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10, gamma=0.35, alpha=2100,
                  beta=200, **sens_net_kwargs):
         # function arguments
         self.T = T
@@ -15,7 +15,7 @@ class Simulation():
         self.gamma = gamma
         self.alpha = alpha
         self.beta = beta
-        self.sens_net_kwargs = sens_net_kwargs  # rand net has no kwargs other than the base spiking net class ones, so these kwargs should be exclusively for the sensory netowrk
+        self.sens_net_kwargs = sens_net_kwargs  # rand net has no kwargs other than the base spiking net class ones, so these kwargs should be exclusively for the sensory network
 
         # relevant variables
         self.sigma = self.N_sensory / 32
@@ -150,7 +150,7 @@ class Simulation():
         # extend input to be T timesteps and only nonzero for 100 ts
         s_ext_T = np.broadcast_to(self.s_ext, (self.T, self.N_sensory * self.N_sensory_nets)).copy()
         # stimulus is presented for 100 ms
-        stim_T = int(10/0.1)
+        stim_T = int(100/self.rand_net.dt)
         s_ext_T[100+stim_T:] = 0
         s_ext_T[:100] = 0
         # s_ext_T *= 0
@@ -212,19 +212,29 @@ def plot_s_ext(run_results, **kwargs):
 
 
 def _plot_rand(key, run_results):
-    plt.imshow(run_results[key].T)
+    plt.imshow(run_results[key].T, aspect='auto')
+    plt.xlabel('Time Steps')
+    plt.ylabel('Neuron #')
     plt.colorbar()
     plt.show()
 
 
 def _plot_sens(key, run_results, sens_idx=0, title=''):
-    plt.imshow(run_results[key][:, sens_idx, :].T)
+    plt.imshow(run_results[key][:, sens_idx, :].T, aspect='auto')
+    plt.xlabel('Time Steps')
+    plt.ylabel('Neuron #')
     plt.title(title)
     plt.colorbar()
     plt.show()
 
+def get_run_results():
+    sim = Simulation(T=1000, N_sensory_nets=1, N_sensory=512, N_rand=1024, amp_ext=10)
+    sim.reset()
+    run_results = sim.run()
+    return run_results
+
 if __name__ == '__main__':
-    sim = Simulation(T=1000, N_sensory_nets=1, N_sensory=512, N_rand=1024, amp_ext=500)
+    sim = Simulation(T=10000, N_sensory_nets=1, N_sensory=512, N_rand=1024, amp_ext=500)
     sim.reset()
     run_results = sim.run()
     print('done')
