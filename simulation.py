@@ -26,9 +26,10 @@ class Simulation():
         self.mus = None
         self.W_fb = None
 
-    def _create_s_ext(self):
+    def _create_s_ext(self, mus=None):
         # randomly select center of input to each network
-        mus = np.random.choice(self.N_sensory, size=(self.load,))
+        if mus is None:
+            mus = np.random.choice(self.N_sensory, size=(self.load,))
         # generate Gaussians around the means for each network with std sigma (with wraparound)
         dist_from_mean = np.array([np.abs([(np.arange(self.N_sensory) - mu),
                                            (np.arange(self.N_sensory) - (mu + self.N_sensory)),
@@ -68,9 +69,9 @@ class Simulation():
 
         return W_ff, W_fb
 
-    def reset(self):
+    def reset(self, mus=None):
         # initialize sensory input
-        input_dict = self._create_s_ext()
+        input_dict = self._create_s_ext(mus)
         self.s_ext = input_dict['s_ext']
         self.mus = input_dict['mus']
         # initialize sensory networks
@@ -156,6 +157,7 @@ class Simulation():
         s_ext_T = np.broadcast_to(self.s_ext, (self.T, self.N_sensory * self.N_sensory_nets)).copy()
         # stimulus is presented for 100 ms
         stim_T = int(100/self.rand_net.dt)
+        s_ext_T[:100] = 0
         s_ext_T[100+stim_T:] = 0
         # s_ext_T *= 0
 
@@ -190,7 +192,9 @@ class Simulation():
             p_rand=p_rand_T
         )
 
+
 if __name__ == '__main__':
-    sim = Simulation(T=10000, N_sensory_nets=1, N_sensory=512, N_rand=1024, amp_ext=500)
-    sim.reset()
+    sim = Simulation(T=1000, N_sensory_nets=8, N_sensory=512, N_rand=1024, amp_ext=300)
+    sim.reset(mus=[256])
     run_results = sim.run()
+    print('done')

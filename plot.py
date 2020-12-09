@@ -52,13 +52,17 @@ def plot_s_ext(run_results, **kwargs):
 
 
 def _plot_rand(key, run_results):
-    plt.imshow(run_results[key].T)
+    plt.imshow(run_results[key].T, aspect='auto')
+    plt.xlabel('Time Steps')
+    plt.ylabel('Neuron #')
     plt.colorbar()
     plt.show()
 
 
 def _plot_sens(key, run_results, sens_idx=0, title=''):
-    plt.imshow(run_results[key][:, sens_idx, :].T)
+    plt.imshow(run_results[key][:, sens_idx, :].T, aspect='auto')
+    plt.xlabel('Time Steps')
+    plt.ylabel('Neuron #')
     plt.title(title)
     plt.colorbar()
     plt.show()
