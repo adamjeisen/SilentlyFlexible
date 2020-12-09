@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.linalg import toeplitz
 class SpikingNetwork():
-    def __init__(self, N=512, tau=10, dt=.1):
+    def __init__(self, N=512, tau=10, dt=1):
         self.r = None  # firing rates
         self.W_rec = None  # recurrent weight matrix
         self.W_other = None
@@ -10,8 +10,8 @@ class SpikingNetwork():
         self.N = N
         self.tau = tau
 
-    def tanh(self, x):
-        return 0.4 * (1 + np.tanh(0.4 * x - 3))
+    def phi(self, x):
+        return (0.4/self.tau) * (1 + np.tanh(0.4 * x - 3))
 
     def reset(self, W_rec, W_other):
         if W_rec is None:
@@ -35,9 +35,9 @@ class SpikingNetwork():
         if s_rec is None:  # random network
             s_rec = np.zeros((self.N,))
         # the tau after
-        r = self.tanh(self.W_rec @ s_rec + self.W_other @ s_other + s_ext)
+        r = self.phi(self.W_rec @ s_rec + self.W_other @ s_other + s_ext)
         # p = np.random.poisson(r*self.dt, size=(self.N, ))
-        p = np.random.rand(self.N, ) < (r * self.dt / self.tau)
+        p = np.random.rand(self.N, ) < (r * self.dt)
         delta_s = (-s_rec) / self.tau + p
         s = s_rec + self.dt * delta_s
         return dict(
@@ -59,7 +59,7 @@ class SensorySpikingNetwork(SpikingNetwork):
         angle = 2. * np.pi * np.arange(1, self.N + 1) / self.N
 
         def weight_intrapool(i):
-            return 0.28 + 2 * np.exp(1 * (np.cos(i) - 1)) - 2 * np.exp(0.25 * (np.cos(i) - 1))
+            return self.lamb + self.A * np.exp(self.k1 * (np.cos(i) - 1)) - self.A * np.exp(self.k2 * (np.cos(i) - 1))
 
         w = np.zeros((self.N, self.N))
         for i in range(self.N):
