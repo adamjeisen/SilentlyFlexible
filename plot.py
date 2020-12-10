@@ -1,32 +1,45 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from analysis import _get_target_sensory_neurons
 
 
-def _get_target_neurons(run_results, mu_idx=0):
-    sigma = run_results['sigma']
-    mu = run_results['mus'][mu_idx]
-    n_sensory = run_results['n_sensory']
+def plot_x_avg(run_results, simulation, mu_idx=0, **kwargs):
+    n_sensory = simulation.N_sensory
+    n_sensory_nets = simulation.N_sensory_nets
+    x_ff = run_results['x_ff']  # shape should be t x n_rand x n_sensory * n_sensory_nets
+    x_ff = x_ff.reshape(x_ff.shape[0], n_sensory_nets, n_sensory)
+    x_fb = run_results['x_fb']
+    x_fb = x_fb.reshape(x_ff.shape[0], n_sensory_nets, n_sensory)  # shape should be t x n_sensory_nets x n_sensory x
+    target_neurons, non_target_neurons = _get_target_sensory_neurons(run_results, mu_idx=mu_idx)
+    target_x_ff = x_ff[1:, mu_idx, target_neurons].mean(1)  # averaging across target neurons
+    non_target_x_ff = x_ff[1:, mu_idx, non_target_neurons].mean(1)
+    target_x_fb = x_fb[1:, mu_idx, target_neurons].mean(1)  # averaging across target neurons
+    non_target_x_fb = x_fb[1:, mu_idx, non_target_neurons].mean(1)
+    f, axs = plt.subplots(2, 1)
+    axs[0].plot(target_x_ff, label='target $x^{FF}$')
+    axs[0].plot(non_target_x_ff, label='non-target $x^{FF}$')
+    axs[0].legend()
+    axs[0].set_title('Average $x$ - feedforward')
+    axs[1].plot(target_x_fb, label='non-target $x^{FB}$')
+    axs[1].plot(non_target_x_fb, label='non-target $x^{FB}$')
+    axs[1].set_title('Average $x$ - feedback')
+    axs[1].legend()
+    plt.tight_layout()
+    plt.show()
 
-    target_neurons = np.arange(mu - 3 * sigma, mu + 3 * sigma)
-    target_neurons = np.where(target_neurons < 0, n_sensory + target_neurons, target_neurons).astype(int)
-    target_neurons = np.where(target_neurons >= n_sensory, target_neurons - n_sensory, target_neurons).astype(int)
 
-    non_target_neurons = np.arange(n_sensory)
-    non_target_neurons = [neuron for neuron in non_target_neurons if neuron not in target_neurons]
-
-    return target_neurons, non_target_neurons
-
-
-def plot_u_avg(run_results, mu_idx=0, **kwargs):
-    n_sensory = run_results['n_sensory']
+def plot_u_avg(run_results, simulation, mu_idx=0, **kwargs):
+    n_sensory = simulation.N_sensory
+    n_sensory_nets = simulation.N_sensory_nets
     u_ff = run_results['u_ff']  # shape should be t x n_rand x n_sensory * n_sensory_nets
-    u_ff = u_ff.reshape(u_ff.shape[0], u_ff.shape[1], -1, n_sensory)
-    u_fb = run_results['u_fb']  # shape should be t x n_sensory_nets x n_sensory x n_rand
-    target_neurons, non_target_neurons = _get_target_neurons(run_results, mu_idx=0)
-    target_u_ff = u_ff[:, :, mu_idx, target_neurons].mean(2).mean(1) # averaging across target neurons
-    non_target_u_ff = u_ff[:, :, mu_idx, non_target_neurons].mean(2).mean(1)
-    target_u_fb = u_fb[:, mu_idx, target_neurons, :].mean(2).mean(1)  # averaging across target neurons
-    non_target_u_fb = u_fb[:, mu_idx, target_neurons, :].mean(2).mean(1)
+    u_ff = u_ff.reshape(u_ff.shape[0], n_sensory_nets, n_sensory)
+    u_fb = run_results['u_fb']
+    u_fb = u_fb.reshape(u_ff.shape[0], n_sensory_nets, n_sensory)  # shape should be t x n_sensory_nets x n_sensory x
+    target_neurons, non_target_neurons = _get_target_sensory_neurons(run_results, mu_idx=mu_idx)
+    target_u_ff = u_ff[1:, mu_idx, target_neurons].mean(1)  # averaging across target neurons
+    non_target_u_ff = u_ff[1:, mu_idx, non_target_neurons].mean(1)
+    target_u_fb = u_fb[1:, mu_idx, target_neurons].mean(1)  # averaging across target neurons
+    non_target_u_fb = u_fb[1:, mu_idx, non_target_neurons].mean(1)
     f, axs = plt.subplots(2, 1)
     axs[0].plot(target_u_ff, label='target $u^{FF}$')
     axs[0].plot(non_target_u_ff, label='non-target $u^{FF}$')
@@ -38,16 +51,16 @@ def plot_u_avg(run_results, mu_idx=0, **kwargs):
     plt.tight_layout()
     plt.show()
 
+
 def plot_s_sens_avg(run_results, **kwargs):
     s_sens = run_results['s_sens']
     mus = run_results['mus']
     sigma = run_results['sigma']
     n_sensory = run_results['n_sensory']
     for mu_idx, mu in enumerate(mus):
-        target_neurons, non_target_neurons = _get_target_neurons(run_results, mu_idx)
+        target_neurons, non_target_neurons = _get_target_sensory_neurons(run_results, mu_idx)
         target_activity = s_sens[:, mu_idx, target_neurons].mean(axis=1)
         plt.plot(target_activity, label='target population')
-
 
         non_target_activity = s_sens[:, mu_idx, non_target_neurons].mean(axis=1)
         plt.plot(non_target_activity)
