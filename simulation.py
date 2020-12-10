@@ -91,7 +91,8 @@ class Simulation():
         self.rand_net.reset(W_ff=self.W_ff)
 
     def _create_s_ext_nonspecific(self):
-        s_ext = np.random.rand(self.N_sensory_nets, self.N_sensory)
+        s_ext = np.ones((self.N_sensory_nets, self.N_sensory)) * 0.5
+        # s_ext = np.random.rand(self.N_sensory_nets, self.N_sensory)
         s_ext *= self.amp_ext_nonspecific
         s_ext[1:, :] = 0
         s_ext = s_ext.reshape(self.N_sensory_nets * self.N_sensory)
@@ -188,7 +189,7 @@ class Simulation():
         # extend input to be T timesteps and only nonzero for 100 ts
         s_ext_T = np.broadcast_to(self.s_ext, (self.T, self.N_sensory * self.N_sensory_nets)).copy()
         # stimulus is presented for 100 ms
-        stim_T = int(100/self.rand_net.dt)
+        stim_T = int(200/self.rand_net.dt)
         s_ext_T[:100] = 0
         s_ext_T[100+stim_T:] = 0
         # s_ext_T *= 0
