@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import pearsonr
-from analysis import _get_target_sensory_neurons
+from analysis import _get_target_sensory_neurons, _get_target_score
 
 
 def plot_synaptic(run_results, simulation, mu_idx=0, **kwargs):
@@ -22,15 +22,11 @@ def plot_synaptic(run_results, simulation, mu_idx=0, **kwargs):
     u_fb = run_results['u_fb']  # shape should be t x n_rand
     gaussian = np.exp(
         (-1 / (2 * simulation.sigma ** 2)) * (np.arange(len(target_neurons)) - int(len(target_neurons) / 2)) ** 2)
-    targeted_score = ((simulation.W_ff > 0).astype(int) -
-                      (simulation.W_ff < 0).astype(int))[:, target_neurons] @ gaussian
-    correl_u = np.array([pearsonr(u_fb[i, :], targeted_score)[0] if not
-                    np.array_equal(np.unique(np.diff(u_fb[i, :])), [0]) else 0 for i in range(1, u_fb.shape[0])])
-    correl_x = np.array([pearsonr(x_fb[i, :], targeted_score)[0] if not
-                    np.array_equal(np.unique(np.diff(u_fb[i, :])), [0]) else 0 for i in range(1, u_fb.shape[0])])
-    correl_ux = np.array([pearsonr(u_fb[i, :] * x_fb[i, :], targeted_score)[0] if not
-                        np.array_equal(np.unique(np.diff(u_fb[i, :])), [0]) else 0 for i in range(1, u_fb.shape[0])])
-
+    correl_results = _get_target_score(run_results, simulation, mu_idx=0)
+    correl_u = correl_results['correl_u']
+    correl_x = correl_results['correl_x']
+    correl_ux = correl_results['correl_ux']
+    # correl_p = correl_results['correl_p']
     f, axs = plt.subplots(2, 1)
     axs[0].plot(target_x_ff * target_u_ff, c='magenta', label='target $u^{FF}x^{FF}$')
     axs[0].plot(non_target_x_ff * non_target_u_ff, c='violet', label='non-target $u^{FF}x^{FF}$')
