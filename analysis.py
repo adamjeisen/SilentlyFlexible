@@ -50,16 +50,22 @@ def _get_target_score(run_results, simulation, mu_idx=0):
         (-1 / (2 * simulation.sigma ** 2)) * (np.arange(len(target_neurons)) - int(len(target_neurons) / 2)) ** 2)
     targeted_score = ((simulation.W_ff > 0).astype(int) -
                       (simulation.W_ff < 0).astype(int))[:, target_neurons] @ gaussian
-    # correl_p = np.array([pearsonr(p_rand[i, :], targeted_score)[0] if not
-    #     np.array_equal(np.unique(np.diff(u_fb[i, :])), [0]) else 0 for i in range(1, u_fb.shape[0])])
+
+    rolling_window = 50
+    rolling_p = np.zeros(p_rand.shape)
+    rolling_p[rolling_window:, :] = np.array([p_rand[i:i + rolling_window, :].sum(0)
+                                              for i in range(p_rand.shape[0] - rolling_window)])
+
     correl_u = np.array([pearsonr(u_fb[i, :], targeted_score)[0] if not
         np.array_equal(np.unique(np.diff(u_fb[i, :])), [0]) else 0 for i in range(1, u_fb.shape[0])])
     correl_x = np.array([pearsonr(x_fb[i, :], targeted_score)[0] if not
-        np.array_equal(np.unique(np.diff(u_fb[i, :])), [0]) else 0 for i in range(1, u_fb.shape[0])])
+        np.array_equal(np.unique(np.diff(u_fb[i, :])), [0]) else 0 for i in range(1, x_fb.shape[0])])
     correl_ux = np.array([pearsonr(u_fb[i, :] * x_fb[i, :], targeted_score)[0] if not
         np.array_equal(np.unique(np.diff(u_fb[i, :])), [0]) else 0 for i in range(1, u_fb.shape[0])])
+    correl_p = np.array([pearsonr(rolling_p[i, :], targeted_score)[0] if not
+        np.array_equal(np.unique(np.diff(rolling_p[i, :])), [0]) else 0 for i in range(1, rolling_p.shape[0])])
     return dict(
-        # correl_p=correl_p,
+        correl_p=correl_p,
         correl_u=correl_u,
         correl_x=correl_x,
         correl_ux=correl_ux

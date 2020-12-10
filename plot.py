@@ -26,7 +26,7 @@ def plot_synaptic(run_results, simulation, mu_idx=0, **kwargs):
     correl_u = correl_results['correl_u']
     correl_x = correl_results['correl_x']
     correl_ux = correl_results['correl_ux']
-    # correl_p = correl_results['correl_p']
+    correl_p = correl_results['correl_p']
     f, axs = plt.subplots(2, 1)
     axs[0].plot(target_x_ff * target_u_ff, c='magenta', label='target $u^{FF}x^{FF}$')
     axs[0].plot(non_target_x_ff * non_target_u_ff, c='violet', label='non-target $u^{FF}x^{FF}$')
@@ -39,6 +39,8 @@ def plot_synaptic(run_results, simulation, mu_idx=0, **kwargs):
     axs[1].plot(correl_u, label='correlation with $u$')
     axs[1].plot(correl_x, label='correlation with $x$')
     axs[1].plot(correl_ux, label='correlation with $ux$')
+    axs[1].plot(correl_p, label='correlation with $p_{rand}'
+                                '$')
     axs[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     axs[1].set_title('Target Score Correlations - feedback')
     plt.tight_layout()
@@ -128,7 +130,6 @@ def plot_u_avg(run_results, simulation, mu_idx=0, **kwargs):
     axs[1].set_title('Targeted Score Correlation with $u$ - feedback')
     plt.tight_layout()
     plt.show()
-
 
 def plot_s_sens_avg(run_results, **kwargs):
     s_sens = run_results['s_sens']
