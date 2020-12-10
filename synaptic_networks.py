@@ -45,7 +45,7 @@ class SynapticSpikingNetwork():
         if s_rec is None:  # random network
             s_rec = np.zeros((self.N,))
         facilitation = self.u * self.x
-        r = self.phi(self.W_rec @ s_rec + self.ux_mod * facilitation * self.W_other @ s_other + s_ext)
+        r = self.phi(self.W_rec @ s_rec + (self.ux_mod * facilitation * self.W_other) @ s_other + s_ext)
         p = np.random.rand(self.N, ) < (r * self.dt)
         delta_s = (-s_rec) / self.tau + p
         s = s_rec + self.dt * delta_s
