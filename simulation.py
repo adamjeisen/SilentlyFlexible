@@ -3,8 +3,7 @@ from synaptic_networks import SensorySynapticNetwork, RandomSynapticNetwork
 
 class Simulation():
     def __init__(self, T=10000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10,
-                 amp_ext_nonspecific=3, gamma=0.35, alpha=2100, beta=200, tau_f=200, tau_d=1500,
-                 ux_mod=2,  **sens_net_kwargs):
+                 amp_ext_nonspecific=3, gamma=0.35, alpha=2100, beta=200, **sens_net_kwargs):
         # function arguments
         self.T = T
         self.load = load
@@ -17,9 +16,6 @@ class Simulation():
         self.alpha = alpha
         self.beta = beta
         self.sens_net_kwargs = sens_net_kwargs  # rand net has no kwargs other than the base spiking net class ones, so these kwargs should be exclusively for the sensory network
-        self.tau_f = tau_f
-        self.tau_d = tau_d
-        self.ux_mod = ux_mod
         # relevant variables
         self.sigma = self.N_sensory / 32
         self.s_ext = None
@@ -79,12 +75,11 @@ class Simulation():
         self.mus = input_dict['mus']
         # initialize sensory networks
 
-        self.sens_nets = [SensorySynapticNetwork(N=self.N_sensory, tau_f=self.tau_f, tau_d=self.tau_d,
-                                                 ux_mod=self.ux_mod,
+        self.sens_nets = [SensorySynapticNetwork(N=self.N_sensory,
                                                  **self.sens_net_kwargs) for
                           i in range(self.N_sensory_nets)]
         # initialize random network
-        self.rand_net = RandomSynapticNetwork(N=self.N_rand, tau_f=self.tau_f, tau_d=self.tau_d, ux_mod=self.ux_mod)
+        self.rand_net = RandomSynapticNetwork(N=self.N_rand, **self.sens_net_kwargs)
         # initialize weight matrices
         self.W_ff, self.W_fb = self._create_weight_matrices()
 
