@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.linalg import toeplitz
 class SynapticSpikingNetwork():
-    def __init__(self, N=512, tau=10, dt=1, tau_d=200, tau_f=1500, u_init=.2):
+    def __init__(self, N=512, tau=10, dt=1, tau_d=200, tau_f=1500, u_init=.2, ux_mod=2):
 
         self.W_rec = None  # recurrent weight matrix
         self.W_other = None # feedforward/back weight matrix
@@ -13,7 +13,7 @@ class SynapticSpikingNetwork():
         self.tau_f = tau_f  # facilitation time constant
         self.u = None
         self.x = None
-
+        self.ux_mod = ux_mod
         self.u_init = u_init
 
     def phi(self, x):
@@ -29,6 +29,7 @@ class SynapticSpikingNetwork():
         self.u = np.ones(W_other.shape) * self.u_init
         self.x = np.ones(W_other.shape)
 
+
     def forward(self, s_ext, s_other, s_rec, p_other):
         """
         Forward pass through spiking network
@@ -43,8 +44,8 @@ class SynapticSpikingNetwork():
             raise ValueError('s_other should not be None')
         if s_rec is None:  # random network
             s_rec = np.zeros((self.N,))
-        # facilitation = self.u * self.x
-        r = self.phi(self.W_rec @ s_rec + self.W_other @ s_other + s_ext)
+        facilitation = self.u * self.x
+        r = self.phi(self.W_rec @ s_rec + self.ux_mod * facilitation * self.W_other @ s_other + s_ext)
         p = np.random.rand(self.N, ) < (r * self.dt)
         delta_s = (-s_rec) / self.tau + p
         s = s_rec + self.dt * delta_s

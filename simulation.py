@@ -2,7 +2,8 @@ import numpy as np
 from synaptic_networks import SensorySynapticNetwork, RandomSynapticNetwork
 
 class Simulation():
-    def __init__(self, T=10000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10, gamma=0.35, alpha=2100,
+    def __init__(self, T=10000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10,
+                 amp_ext_nonspecific=3, gamma=0.35, alpha=2100,
                  beta=200, **sens_net_kwargs):
         # function arguments
         self.T = T
@@ -11,6 +12,7 @@ class Simulation():
         self.N_rand = N_rand
         self.N_sensory_nets = N_sensory_nets
         self.amp_ext = amp_ext
+        self.amp_ext_nonspecific = amp_ext_nonspecific
         self.gamma = gamma
         self.alpha = alpha
         self.beta = beta
@@ -89,6 +91,13 @@ class Simulation():
         # reset random network
         self.rand_net.reset(W_ff=self.W_ff)
 
+    def _create_s_ext_nonspecific(self):
+        s_ext = np.random.rand(self.N_sensory_nets, self.N_sensory)
+        s_ext *= self.amp_ext_nonspecific
+        s_ext[1:, :] = 0
+        s_ext = s_ext.reshape(self.N_sensory_nets * self.N_sensory)
+        return s_ext
+
     def forward(self, s_ext, s_rand_prev, s_sens_prev, p_rand_prev):
         """
         Single timestep forward
@@ -108,8 +117,8 @@ class Simulation():
         p_sens = np.zeros((self.N_sensory_nets, self.N_sensory))
 
         # initializing empty array to hold synaptic feedforward variables
-        u_fb = np.zeros((self.N_sensory_nets, self.N_sensory))
-        x_fb = np.zeros((self.N_sensory_nets, self.N_sensory))
+        u_fb = np.zeros((self.N_sensory_nets, self.N_rand))
+        x_fb = np.zeros((self.N_sensory_nets, self.N_rand))
 
         # forward step for all sensory networks
         for i, sens_net in enumerate(self.sens_nets):
@@ -117,12 +126,12 @@ class Simulation():
             s_sens[i] = sens_step['s']
             r_sens[i] = sens_step['r']
             p_sens[i] = sens_step['p']
-            u_fb[i] = sens_step['u'].mean(1)
-            x_fb[i] = sens_step['x'].mean(1)
+            u_fb[i] = sens_step['u'].mean(0)
+            x_fb[i] = sens_step['x'].mean(0)
 
-        # collapsing feedback synaptic matrices to be one-dimensional of size N_sensory * N_sensory_nets
-        x_fb = x_fb.reshape(self.N_sensory_nets * self.N_sensory)
-        u_fb = u_fb.reshape(self.N_sensory_nets * self.N_sensory)
+        # collapsing feedback synaptic matrices to be one-dimensional of size N_rand
+        x_fb = x_fb.mean(0)
+        u_fb = u_fb.mean(0)
 
         # reshaping sensory network activity into a one-dimensional array for random network
         s_sens = s_sens.reshape(self.N_sensory_nets * self.N_sensory, )
@@ -159,9 +168,9 @@ class Simulation():
         Runs through entire simulation
         """
         # intializing synaptic variables matrices
-        u_fb = np.zeros((self.T, self.N_sensory_nets * self.N_sensory))
+        u_fb = np.zeros((self.T, self.N_rand))
         u_ff = np.zeros((self.T, self.N_sensory * self.N_sensory_nets))
-        x_fb = np.zeros((self.T, self.N_sensory_nets * self.N_sensory))
+        x_fb = np.zeros((self.T, self.N_rand))
         x_ff = np.zeros((self.T, self.N_sensory_nets * self.N_sensory))
 
         # initializing random network activity
@@ -184,6 +193,10 @@ class Simulation():
         s_ext_T[:100] = 0
         s_ext_T[100+stim_T:] = 0
         # s_ext_T *= 0
+
+        # global nonspecific input
+        s_ext_nonspecific = self._create_s_ext_nonspecific()
+        s_ext_T[600:650] = s_ext_nonspecific
 
         for t in range(1, self.T):
             if (t + 1) % 100 == 0:
