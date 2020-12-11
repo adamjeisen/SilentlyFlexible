@@ -6,6 +6,29 @@ from scipy.stats import pearsonr
 from analysis import _get_target_sensory_neurons, _get_target_score
 from utils import load
 
+def plot_overlaid(run_results, simulation, mu_idx=0, **kwargs):
+    f, axs = plt.subplots(1, 1, )
+    p_sens = run_results['p_sens'][:, mu_idx, :]
+    n_sensory = simulation.N_sensory
+    n_sensory_nets = simulation.N_sensory_nets
+    x_ff = run_results['x_ff']  # shape should be t x n_rand x n_sensory * n_sensory_nets
+    x_ff = x_ff.reshape(x_ff.shape[0], n_sensory_nets, n_sensory)
+    u_ff = run_results['u_ff']  # shape should be t x n_rand x n_sensory * n_sensory_nets
+    u_ff = u_ff.reshape(u_ff.shape[0], n_sensory_nets, n_sensory)
+    target_neurons, non_target_neurons = _get_target_sensory_neurons(run_results, mu_idx=mu_idx)
+    target_u_ff = u_ff[1:, mu_idx, target_neurons].mean(1)  # averaging across target neurons
+    non_target_u_ff = u_ff[1:, mu_idx, non_target_neurons].mean(1)
+
+    target_x_ff = x_ff[1:, mu_idx, target_neurons].mean(1)  # averaging across target neurons
+    non_target_x_ff = x_ff[1:, mu_idx, non_target_neurons].mean(1)
+    axs.imshow(p_sens.T, cmap='Greys', origin='left')
+    axs.plot(512 * target_x_ff, c='blue', label='target $x^{FF}$')
+    axs.plot(512 * target_u_ff, c='green', label='target $u^{FF}$')
+    axs.plot(512 * target_x_ff * target_u_ff, c='magenta', label='target $u^{FF}x^{FF}$')
+    axs.axvspan(100, 300, color='r', alpha=0.2)
+    axs.axvspan(600, 650, color='r', alpha=0.2)
+    axs.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.show()
 
 def plot_synaptic(run_results, simulation, sens_idx=0, save_path=None, **kwargs):
     n_sensory = simulation.N_sensory
