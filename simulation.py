@@ -1,9 +1,15 @@
 import numpy as np
+import os
+import pandas as pd
+
+from analysis import _get_mle_mus, _get_maintained_memory
+from plot import save_all_plots
 from synaptic_networks import SensorySynapticNetwork, RandomSynapticNetwork
+from utils import load
 
 class Simulation():
     def __init__(self, T=10000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10,
-                 amp_ext_nonspecific=3, gamma=0.35, alpha=2100, beta=200, **sens_net_kwargs):
+                 amp_ext_nonspecific=6, amp_ext_nonspecific_rand=6, amp_ext_stim_rand=3, amp_ext_background_rand=2, gamma=0.35, alpha=2100, beta=200, **sens_net_kwargs):
         # function arguments
         self.T = T
         self.load = load
@@ -12,6 +18,9 @@ class Simulation():
         self.N_sensory_nets = N_sensory_nets
         self.amp_ext = amp_ext
         self.amp_ext_nonspecific = amp_ext_nonspecific
+        self.amp_ext_nonspecific_rand = amp_ext_nonspecific_rand
+        self.amp_ext_stim_rand = amp_ext_stim_rand
+        self.amp_ext_background_rand = amp_ext_background_rand
         self.gamma = gamma
         self.alpha = alpha
         self.beta = beta
@@ -21,6 +30,7 @@ class Simulation():
         self.s_ext = None
         self.sens_nets = None
         self.rand_net = None
+        self.s_ext_rand = None
         self.W_ff = None
         self.mus = None
         self.W_fb = None
@@ -28,23 +38,25 @@ class Simulation():
     def _create_s_ext(self, mus=None):
         # randomly select center of input to each network
         if mus is None:
-            mus = np.random.choice(self.N_sensory, size=(self.load,))
+            mu_locs = np.random.choice(self.N_sensory_nets, size=(self.load,), replace=False)
+            mus = np.array([None]*self.N_sensory_nets)
+            mus[mu_locs] = np.random.choice(self.N_sensory, size=(self.load,))
         # generate Gaussians around the means for each network with std sigma (with wraparound)
-        dist_from_mean = np.array([np.abs([(np.arange(self.N_sensory) - mu),
-                                           (np.arange(self.N_sensory) - (mu + self.N_sensory)),
-                                           (np.arange(self.N_sensory) - (mu - self.N_sensory))]).min(axis=0) for mu in
-                                   mus])
-        s_ext = np.exp(-1 * (dist_from_mean ** 2) / (2 * self.sigma ** 2))
-        s_ext *= self.amp_ext / np.sqrt(2 * np.pi * self.sigma ** 2)
-        # zero out anything beyond 3 standard deviations
-        s_ext[dist_from_mean > 3 * self.sigma] = 0
+        s_ext = np.zeros((self.N_sensory_nets, self.N_sensory))
+        for i in range(self.N_sensory_nets):
+            mu = mus[i]
+            if mu is not None:
+                dist_from_mean = np.abs([(np.arange(self.N_sensory) - mu),
+                                            (np.arange(self.N_sensory) - (mu + self.N_sensory)),
+                                            (np.arange(self.N_sensory) - (mu - self.N_sensory))]).min(axis=0)
+                s_ext[i] = np.exp(-1 * (dist_from_mean ** 2) / (2 * self.sigma ** 2))
+                s_ext[i] *= self.amp_ext / np.sqrt(2 * np.pi * self.sigma ** 2)
+                # zero out anything beyond 3 standard deviations
+                s_ext[i, dist_from_mean > 3 * self.sigma] = 0
 
-        net = 0  # TODO: Make this a randomly selected network?
-        s_ext_all = np.zeros((self.N_sensory_nets, self.N_sensory))
-        s_ext_all[net] = s_ext
-        s_ext_all = s_ext_all.reshape(self.N_sensory * self.N_sensory_nets)
+        s_ext = s_ext.reshape(self.N_sensory * self.N_sensory_nets)
         return dict(
-            s_ext=s_ext_all,
+            s_ext=s_ext,
             mus=mus
         )
 
@@ -73,6 +85,8 @@ class Simulation():
         input_dict = self._create_s_ext(mus)
         self.s_ext = input_dict['s_ext']
         self.mus = input_dict['mus']
+        if mus is not None:
+            self.load = sum([mu is not None for mu in mus])
         # initialize sensory networks
 
         self.sens_nets = [SensorySynapticNetwork(N=self.N_sensory,
@@ -90,15 +104,18 @@ class Simulation():
         # reset random network
         self.rand_net.reset(W_ff=self.W_ff)
 
+        # reset external input to random network
+
+
     def _create_s_ext_nonspecific(self):
-        s_ext = np.ones((self.N_sensory_nets, self.N_sensory)) * 0.5
-        # s_ext = np.random.rand(self.N_sensory_nets, self.N_sensory)
-        s_ext *= self.amp_ext_nonspecific
-        s_ext[1:, :] = 0
+        s_ext = np.zeros((self.N_sensory_nets, self.N_sensory))
+        for i in range(self.N_sensory_nets):
+            if self.mus[i] is not None:
+                s_ext[i] += self.amp_ext_nonspecific
         s_ext = s_ext.reshape(self.N_sensory_nets * self.N_sensory)
         return s_ext
 
-    def forward(self, s_ext, s_rand_prev, s_sens_prev, p_rand_prev):
+    def forward(self, s_ext, s_rand_prev, s_sens_prev, p_rand_prev, s_ext_rand):
         """
         Single timestep forward
         s_ext: External inputs (N_sensory_nets * N_sensory, 1)
@@ -139,7 +156,7 @@ class Simulation():
         r_sens = r_sens.reshape(self.N_sensory_nets * self.N_sensory, )
 
         # forward step for random network
-        rand_step = self.rand_net.forward(s_sens=s_sens, s_rec=s_rand_prev, p_sens=p_sens)
+        rand_step = self.rand_net.forward(s_sens=s_sens, s_rec=s_rand_prev, p_sens=p_sens, s_ext=s_ext_rand)
         s_rand = rand_step['s']
         r_rand = rand_step['r']
         p_rand = rand_step['p']
@@ -187,16 +204,19 @@ class Simulation():
         s_sens_T[0, :] = np.random.uniform(low=0, high=0.01, size=(self.N_sensory_nets * self.N_sensory))
 
         # extend input to be T timesteps and only nonzero for 100 ts
-        s_ext_T = np.broadcast_to(self.s_ext, (self.T, self.N_sensory * self.N_sensory_nets)).copy()
+        s_ext_T = np.zeros((self.T, self.N_sensory * self.N_sensory_nets))
         # stimulus is presented for 100 ms
         stim_T = int(200/self.rand_net.dt)
-        s_ext_T[:100] = 0
-        s_ext_T[100+stim_T:] = 0
-        # s_ext_T *= 0
+        s_ext_T[100:100+stim_T] += self.s_ext
 
         # global nonspecific input
-        s_ext_nonspecific = self._create_s_ext_nonspecific()
-        s_ext_T[600:650] = s_ext_nonspecific
+        s_ext_T[600:650] += self._create_s_ext_nonspecific()
+
+        # global nonspecific input to random network
+        s_ext_rand_T = np.zeros((self.T, self.N_rand))
+        s_ext_rand_T[600:650] += self.amp_ext_nonspecific_rand
+        s_ext_rand_T[100:1+stim_T] += self.amp_ext_stim_rand
+        s_ext_rand_T += self.amp_ext_background_rand
 
         for t in range(1, self.T):
             if (t + 1) % 100 == 0:
@@ -205,7 +225,9 @@ class Simulation():
             s_rand_prev = s_rand_T[t - 1]
             p_rand_prev = p_rand_T[t - 1]
             s_ext = s_ext_T[t - 1]
-            step = self.forward(s_ext=s_ext, s_rand_prev=s_rand_prev, s_sens_prev=s_sens_prev, p_rand_prev=p_rand_prev)
+            s_ext_rand = s_ext_rand_T[t - 1]
+            step = self.forward(s_ext=s_ext, s_rand_prev=s_rand_prev, s_sens_prev=s_sens_prev,
+                                    p_rand_prev=p_rand_prev, s_ext_rand=s_ext_rand)
             s_sens_T[t] = step['s_sens']
             p_sens_T[t] = step['p_sens']
             r_sens_T[t] = step['r_sens']
@@ -237,5 +259,48 @@ class Simulation():
             p_sens=p_sens_T,
             s_rand=s_rand_T,
             r_rand=r_rand_T,
-            p_rand=p_rand_T
+            p_rand=p_rand_T,
+            s_ext_rand=s_ext_rand_T
         )
+
+def get_run_stats(directory='data', gen_plots=False):
+    paths = [os.path.join(directory, f) for f in os.listdir(directory)
+                        if not os.path.isdir(os.path.join(directory, f)) and not f.startswith('.')]
+    run_stats_rows = []
+    for path in paths:
+        data = load(path)
+        run_results = data['run_results']
+        simulation = data['simulation']
+
+        # get statistics on how accurate memories were
+        mle_mus = _get_mle_mus(run_results, simulation)
+        mu_error = np.array([np.abs(mle_mus[i] - simulation.mus[i]) if simulation.mus[i]
+                                                    is not None else None for i in range(simulation.N_sensory_nets)])
+
+        # get statistics on how well memories were maintained
+        maintained_memory, avg_spikes = _get_maintained_memory(run_results, simulation, mle_mus)
+        load_locs = np.array([mu is not None for mu in simulation.mus])
+        maintained_memories = sum(maintained_memory[load_locs])
+        spurious_memories = sum(maintained_memory[~load_locs])
+        percent_maintained = maintained_memories/simulation.load
+        percent_spurious = spurious_memories/(simulation.N_sensory_nets - simulation.load)
+
+        run_stats_rows.append(dict(
+            path=path,
+            mle_mus=mle_mus,
+            mu_error=mu_error,
+            maintained_memory=maintained_memory,
+            avg_spikes=avg_spikes,
+            load_locs=load_locs,
+            maintained_memories=maintained_memories,
+            spurious_memories=spurious_memories,
+            percent_maintained=percent_maintained,
+            percent_spurious=percent_spurious
+        ))
+
+    run_stats_df = pd.DataFrame(run_stats_rows)
+
+    if gen_plots:
+        save_all_plots(run_stats_df)
+
+    return run_stats_df

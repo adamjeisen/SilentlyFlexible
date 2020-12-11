@@ -1,5 +1,4 @@
 import pickle as pkl
-from simulation import Simulation
 from datetime import datetime
 
 def get_fpath(simulation):
