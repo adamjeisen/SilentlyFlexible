@@ -48,6 +48,33 @@ class Simulation():
             mus=mus
         )
 
+    def _create_topographic_weight_matrices(self):
+        # hard coded vars
+        sigma = self.N_rand / 4
+        W_ff_prob = np.zeros((self.N_sensory_nets, self.N_sensory, self.N_rand))
+        gaussian = np.exp((-1 / (2 * sigma ** 2)) * (np.arange(self.N_rand) - int(self.N_rand) / 2) ** 2)
+        for i in range(self.N_sensory_nets):
+            # means of each sensory neuron
+            mu_js = np.linspace(start=0, stop=self.N_rand, num=self.N_sensory, dtype=int)
+            mid_mu_j = np.random.choice(mu_js)
+            # creating probability matrix for excitatory weights
+            gaussians = [np.roll(gaussian, mu_j - mid_mu_j) for mu_j in mu_js]
+            gaussians = np.stack(gaussians)
+            A = self.gamma * self.N_rand / sum(gaussian)
+            gaussians *= A
+            W_ff_prob[i] = gaussians
+        # setting weights as inhibitory or excitatory
+        W_ff = np.random.rand(W_ff_prob.shape[0], W_ff_prob.shape[1], W_ff_prob.shape[2]) < W_ff_prob
+        W_ff = W_ff.reshape(self.N_rand, self.N_sensory_nets * self.N_sensory)
+        W_fb = W_ff.T
+        W_ff = (self.alpha / (
+            np.repeat(W_ff.sum(axis=1), self.N_sensory_nets * self.N_sensory).reshape(W_ff.shape))) * W_ff
+        W_ff -= self.alpha / (self.N_sensory_nets * self.N_sensory)
+        W_fb = (self.beta / (np.repeat(W_fb.sum(axis=1), self.N_rand).reshape(W_fb.shape))) * W_fb
+        # BACK: set up inhibitory connections
+        W_fb -= self.beta / self.N_rand
+        return W_ff, W_fb
+
     def _create_weight_matrices(self):
         # initialize which connections are excitatory in the feed forward matrix (sample from Bernoulli)
         W_ff = (np.random.uniform(low=0, high=1, size=(self.N_rand, self.N_sensory_nets * self.N_sensory)) <
@@ -81,7 +108,8 @@ class Simulation():
         # initialize random network
         self.rand_net = RandomSynapticNetwork(N=self.N_rand, **self.sens_net_kwargs)
         # initialize weight matrices
-        self.W_ff, self.W_fb = self._create_weight_matrices()
+        # self.W_ff, self.W_fb = self._create_weight_matrices()
+        self.W_ff, self.W_fb = self._create_topographic_weight_matrices()
 
         # reset sensory networks
         for i, sens_net in enumerate(self.sens_nets):
