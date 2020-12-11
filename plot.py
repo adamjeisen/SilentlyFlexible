@@ -183,7 +183,7 @@ def plot_s_sens(run_results, **kwargs):
 
 
 def plot_p_sens(run_results, **kwargs):
-    _plot_sens(key='p_sens', run_results=run_results, title='Spiking in Sensory Net', **kwargs)
+    _plot_sens(key='p_sens', run_results=run_results, title='Spiking in Sensory Network', **kwargs)
 
 
 def plot_r_rand(run_results, **kwargs):
@@ -207,11 +207,16 @@ def plot_s_ext_rand(run_results, **kwargs):
 
 def _plot_rand(key, run_results, title='', save_path=None):
     fig = plt.figure()
-    plt.imshow(run_results[key].T, aspect='auto')
+    if key == 'p_rand':
+        spike_times, spike_locations = np.where(run_results[key])
+        plt.scatter(spike_times, spike_locations, c='black', s=2)
+        plt.gca().invert_yaxis()
+    else:
+        plt.imshow(run_results[key].T, aspect='auto')
+        plt.colorbar()
     plt.xlabel('Time Steps')
     plt.ylabel('Neuron #')
     plt.title(title)
-    plt.colorbar()
     if save_path is None:
         plt.show()
     else:
@@ -221,13 +226,18 @@ def _plot_rand(key, run_results, title='', save_path=None):
 
 def _plot_sens(key, run_results, sens_idx=0, title='', save_path=None):
     fig = plt.figure()
-    plt.imshow(run_results[key][:, sens_idx, :].T, aspect='auto')
+    if key == 'p_sens':
+        spike_times, spike_locations = np.where(run_results[key][:, sens_idx, :])
+        plt.scatter(spike_times, spike_locations, c='black', s=2)
+        plt.gca().invert_yaxis()
+    else:
+        plt.imshow(run_results[key][:, sens_idx, :].T, aspect='auto')
+        plt.colorbar()
     plt.xlabel('Time Steps')
     plt.ylabel('Neuron #')
     if title:
         title += f' {sens_idx}'
     plt.title(title)
-    plt.colorbar()
     if save_path is None:
         plt.show()
     else:
