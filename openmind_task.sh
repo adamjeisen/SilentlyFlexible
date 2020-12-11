@@ -14,7 +14,7 @@ echo ${SLURM_ARRAY_JOB_ID}
 echo ${SLURM_ARRAY_TASK_ID}
 echo ${CONFIG_NAME}
 
-log_dir=logs/${SLURM_ARRAY_JOB_ID}/${SLURM_ARRAY_TASK_ID}
+log_dir=logs/${SLURM_ARRAY_JOB_ID}
 
 echo ${log_dir}
 

@@ -1,6 +1,9 @@
 import pickle as pkl
 from datetime import datetime
 
+def save_dict(d, fpath):
+    with open(fpath, 'wb') as f:
+        pkl.dump(d, f)
 
 def get_fpath(simulation):
     tau_f, tau_d, amp_ext, ux_mod, u_init = simulation.rand_net.tau_f, simulation.rand_net.tau_d, simulation.amp_ext, \

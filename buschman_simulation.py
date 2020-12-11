@@ -2,7 +2,7 @@ import numpy as np
 from networks import RandomNetwork, SensorySpikingNetwork
 from datetime import datetime
 class Simulation():
-    def __init__(self, T=1000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=300, gamma=0.35,
+    def __init__(self, T=1000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=8, amp_ext=300, gamma=0.35,
                  alpha=2100, beta=200, **sens_net_kwargs):
         # function arguments
         self.T = T
@@ -27,24 +27,25 @@ class Simulation():
 
     def _create_s_ext(self):
         # randomly select center of input to each network
-        np.random.seed(1)
-        mus = np.random.choice(self.N_sensory, size=(self.load,))
+        mu_locs = np.random.choice(self.N_sensory_nets, size=(self.load,), replace=False)
+        mus = np.array([None]*self.N_sensory_nets)
+        mus[mu_locs] = np.random.choice(self.N_sensory, size=(self.load,))
         # generate Gaussians around the means for each network with std sigma (with wraparound)
-        dist_from_mean = np.array([np.abs([(np.arange(self.N_sensory) - mu),
-                                           (np.arange(self.N_sensory) - (mu + self.N_sensory)),
-                                           (np.arange(self.N_sensory) - (mu - self.N_sensory))]).min(axis=0) for mu in
-                                   mus])
-        s_ext = np.exp(-1 * (dist_from_mean ** 2) / (2 * self.sigma ** 2))
-        s_ext *= self.amp_ext / np.sqrt(2 * np.pi * self.sigma ** 2)
-        # zero out anything beyond 3 standard deviations
-        s_ext[dist_from_mean > 3 * self.sigma] = 0
+        s_ext = np.zeros((self.N_sensory_nets, self.N_sensory))
+        for i in range(self.N_sensory_nets):
+            mu = mus[i]
+            if mu is not None:
+                dist_from_mean = np.abs([(np.arange(self.N_sensory) - mu),
+                                         (np.arange(self.N_sensory) - (mu + self.N_sensory)),
+                                         (np.arange(self.N_sensory) - (mu - self.N_sensory))]).min(axis=0)
+                s_ext[i] = np.exp(-1 * (dist_from_mean ** 2) / (2 * self.sigma ** 2))
+                s_ext[i] *= self.amp_ext / np.sqrt(2 * np.pi * self.sigma ** 2)
+                # zero out anything beyond 3 standard deviations
+                s_ext[i, dist_from_mean > 3 * self.sigma] = 0
 
-        net = 0  # TODO: Make this a randomly selected network?
-        s_ext_all = np.zeros((self.N_sensory_nets, self.N_sensory))
-        s_ext_all[net] = s_ext
-        s_ext_all = s_ext_all.reshape(self.N_sensory * self.N_sensory_nets)
+        s_ext = s_ext.reshape(self.N_sensory * self.N_sensory_nets)
         return dict(
-            s_ext=s_ext_all,
+            s_ext=s_ext,
             mus=mus
         )
 

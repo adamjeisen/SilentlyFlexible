@@ -4,7 +4,7 @@ import importlib
 import logging
 import os
 import buschman_simulation
-from utils import save
+from utils import save, save_dict
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('config', '',
@@ -34,7 +34,8 @@ def main(_):
         save(run_results=run_results, simulation=sim, fpath=fpath)
     else:
         pass
-    _log('config', str(config))
+    f_name = os.path.join(log_directory, 'log')
+    save_dict(config, f_name)
 
 
 if __name__ == '__main__':
