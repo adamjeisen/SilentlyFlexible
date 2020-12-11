@@ -21,10 +21,13 @@ def get_run_stats(directory, gen_plots=False):
 
         # get statistics on how accurate memories were
         mle_mus = _get_mle_mus(run_results, simulation)
-        mu_error = np.array([np.abs(mle_mus[i] - simulation.mus[i]) if simulation.mus[i]
-                                                                       is not None else None for i in
-                             range(simulation.N_sensory_nets)])
-
+        dist_from_mean = np.array([
+                        np.abs([(mle_mus[i] - simulation.mus[i]),
+                                (mle_mus[i] - (simulation.mus[i] + simulation.N_sensory)),
+                                (mle_mus[i] - (simulation.mus[i] - simulation.N_sensory))]).min(axis=0)
+                                if simulation.mus[i] is not None else None for i in range(simulation.N_sensory_nets)])
+        mu_error = np.array([(dist / (simulation.N_sensory / 2)) * np.pi
+                             if dist is not None else None for dist in dist_from_mean])
         # get statistics on how well memories were maintained
         maintained_memory, avg_spikes = _get_maintained_memory(run_results, simulation, mle_mus)
         load_locs = np.array([mu is not None for mu in simulation.mus])
