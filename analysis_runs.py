@@ -31,7 +31,10 @@ def get_run_stats(directory, gen_plots=False):
         maintained_memories = sum(maintained_memory[load_locs])
         spurious_memories = sum(maintained_memory[~load_locs])
         percent_maintained = maintained_memories / simulation.load
-        percent_spurious = spurious_memories / (simulation.N_sensory_nets - simulation.load)
+        if simulation.load < 8:
+            percent_spurious = spurious_memories / (simulation.N_sensory_nets - simulation.load)
+        else:
+            percent_spurious = 0
         avg_mu_error = mu_error[load_locs].mean()
         run_stats_rows.append(dict(
             load=simulation.load,

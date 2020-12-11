@@ -3,8 +3,9 @@
 #SBATCH -o ./logs/%A/slurm_logs/%a.out
 #SBATCH --time=06:00:00
 #SBATCH --job-name=silently_flexible
-#SBATCH --nodes=1
+#SBATCH --nodes=3
 #SBATCH -c1
+#SBATCH --partition fiete
 #SBATCH --mail-user=apiccato@mit.edu
 
 
