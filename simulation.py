@@ -64,18 +64,24 @@ class Simulation():
     def _create_topographic_weight_matrices(self):
         # hard coded vars
         sigma = self.N_rand / 4
-        W_ff_prob = np.zeros((self.N_sensory_nets, self.N_sensory, self.N_rand))
+        W_ff_prob = np.zeros((self.N_rand, self.N_sensory_nets, self.N_sensory))
         gaussian = np.exp((-1 / (2 * sigma ** 2)) * (np.arange(self.N_rand) - int(self.N_rand) / 2) ** 2)
         for i in range(self.N_sensory_nets):
+            rand_shuff = np.arange((self.N_rand))
+            np.random.shuffle(rand_shuff)
+
             # means of each sensory neuron
+
             mu_js = np.linspace(start=0, stop=self.N_rand, num=self.N_sensory, dtype=int)
             mid_mu_j = np.random.choice(mu_js)
             # creating probability matrix for excitatory weights
             gaussians = [np.roll(gaussian, mu_j - mid_mu_j) for mu_j in mu_js]
             gaussians = np.stack(gaussians)
+            # shuffling random neuron indices
+            gaussians = gaussians[:, rand_shuff]
             A = self.gamma * self.N_rand / sum(gaussian)
             gaussians *= A
-            W_ff_prob[i] = gaussians
+            W_ff_prob[:, i, ] = gaussians.T
         # setting weights as inhibitory or excitatory
         W_ff = np.random.rand(W_ff_prob.shape[0], W_ff_prob.shape[1], W_ff_prob.shape[2]) < W_ff_prob
         W_ff = W_ff.reshape(self.N_rand, self.N_sensory_nets * self.N_sensory)
@@ -253,7 +259,7 @@ class Simulation():
         # global nonspecific input to random network
         s_ext_rand_T = np.zeros((self.T, self.N_rand))
         s_ext_rand_T[600:650] += self.amp_ext_nonspecific_rand
-        s_ext_rand_T[100:1+stim_T] += self.amp_ext_stim_rand
+        s_ext_rand_T[100:100+stim_T] += self.amp_ext_stim_rand
         s_ext_rand_T += self.amp_ext_background_rand
 
         for t in range(1, self.T):
