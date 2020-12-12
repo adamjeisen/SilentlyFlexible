@@ -8,8 +8,8 @@ from synaptic_networks import SensorySynapticNetwork, RandomSynapticNetwork
 from utils import load
 
 class Simulation():
-    def __init__(self, T=10000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10,
-                 amp_ext_nonspecific=6, amp_ext_nonspecific_rand=6, amp_ext_stim_rand=3, amp_ext_background_rand=2, gamma=0.35, alpha=2100, beta=200, **sens_net_kwargs):
+    def __init__(self, T=1000, load=1, N_sensory=512, N_rand=1024, N_sensory_nets=2, amp_ext=10,
+                 amp_ext_nonspecific=6, amp_ext_background=0, amp_ext_nonspecific_rand=5, amp_ext_stim_rand=5, amp_ext_background_rand=0, gamma=0.35, alpha=2100, beta=200, **sens_net_kwargs):
         # function arguments
         self.T = T
         self.load = load
@@ -18,6 +18,7 @@ class Simulation():
         self.N_sensory_nets = N_sensory_nets
         self.amp_ext = amp_ext
         self.amp_ext_nonspecific = amp_ext_nonspecific
+        self.amp_ext_background = amp_ext_background
         self.amp_ext_nonspecific_rand = amp_ext_nonspecific_rand
         self.amp_ext_stim_rand = amp_ext_stim_rand
         self.amp_ext_background_rand = amp_ext_background_rand
@@ -112,6 +113,14 @@ class Simulation():
         for i in range(self.N_sensory_nets):
             if self.mus[i] is not None:
                 s_ext[i] += self.amp_ext_nonspecific
+        s_ext = s_ext.reshape(self.N_sensory_nets * self.N_sensory)
+        return s_ext
+
+    def _create_s_ext_background(self):
+        s_ext = np.zeros((self.N_sensory_nets, self.N_sensory))
+        for i in range(self.N_sensory_nets):
+            if self.mus[i] is not None:
+                s_ext[i] += self.amp_ext_background
         s_ext = s_ext.reshape(self.N_sensory_nets * self.N_sensory)
         return s_ext
 
@@ -211,6 +220,7 @@ class Simulation():
 
         # global nonspecific input
         s_ext_T[600:650] += self._create_s_ext_nonspecific()
+        s_ext_T += self._create_s_ext_background()
 
         # global nonspecific input to random network
         s_ext_rand_T = np.zeros((self.T, self.N_rand))

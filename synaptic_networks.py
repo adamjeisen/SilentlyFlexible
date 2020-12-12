@@ -49,8 +49,9 @@ class SynapticSpikingNetwork():
             raise ValueError('s_other should not be None')
         if s_rec is None:  # random network
             s_rec = np.zeros((self.N,))
-        facilitation = self.u * self.x
-        r = self.phi(self.W_rec @ s_rec + (self.ux_mod * facilitation * self.W_other) @ s_other + s_ext)
+        facilitation = self.ux_mod* self.u * self.x
+        # facilitation[self.W_other < 0] = 1
+        r = self.phi(self.W_rec @ s_rec + (facilitation * self.W_other) @ s_other + s_ext)
         p = np.random.rand(self.N, ) < (r * self.dt)
         delta_s = (-s_rec) / self.tau + p
         s = s_rec + self.dt * delta_s
