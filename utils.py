@@ -5,10 +5,17 @@ def save_dict(d, fpath):
     with open(fpath, 'wb') as f:
         pkl.dump(d, f)
 
+def get_fpath_buschman(simulation):
+    amp_ext = simulation.amp_ext
+    fpath = f'data/{datetime.now()}_amp_ext={amp_ext}'
+
+    return fpath
+
 def get_fpath(simulation):
     tau_f, tau_d, amp_ext, ux_mod, u_init = simulation.rand_net.tau_f, simulation.rand_net.tau_d, simulation.amp_ext, \
                                             simulation.rand_net.ux_mod, simulation.rand_net.u_init
     fpath = f'data/{datetime.now()}_tau_f={tau_f}_tau_d={tau_d}_amp_ext={amp_ext}_ux_mod={ux_mod}_u_init={u_init}'
+
     return fpath
 
 
