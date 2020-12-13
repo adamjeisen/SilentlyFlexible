@@ -25,11 +25,12 @@ class Simulation():
         self.mus = None
         self.W_fb = None
 
-    def _create_s_ext(self):
+    def _create_s_ext(self, mus=None):
         # randomly select center of input to each network
-        mu_locs = np.random.choice(self.N_sensory_nets, size=(self.load,), replace=False)
-        mus = np.array([None]*self.N_sensory_nets)
-        mus[mu_locs] = np.random.choice(self.N_sensory, size=(self.load,))
+        if mus is None:
+            mu_locs = np.random.choice(self.N_sensory_nets, size=(self.load,), replace=False)
+            mus = np.array([None] * self.N_sensory_nets)
+            mus[mu_locs] = np.random.choice(self.N_sensory, size=(self.load,))
         # generate Gaussians around the means for each network with std sigma (with wraparound)
         s_ext = np.zeros((self.N_sensory_nets, self.N_sensory))
         for i in range(self.N_sensory_nets):
@@ -76,9 +77,11 @@ class Simulation():
 
     def reset(self, mus=None):
         # initialize sensory input
-        input_dict = self._create_s_ext()
+        input_dict = self._create_s_ext(mus)
         self.s_ext = input_dict['s_ext']
         self.mus = input_dict['mus']
+        if mus is not None:
+            self.load = sum([mu is not None for mu in mus])
         # initialize sensory networks
 
         self.sens_nets = [SensorySpikingNetwork(N=self.N_sensory,

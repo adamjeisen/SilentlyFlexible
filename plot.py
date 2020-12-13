@@ -1,34 +1,88 @@
+import itertools as itt
 import matplotlib.pyplot as plt
 import numpy as np
+import operator as op
 import os
 from scipy.stats import pearsonr
 
 from analysis import _get_target_sensory_neurons, _get_target_score
 from utils import load
 
-def plot_overlaid(run_results, simulation, mu_idx=0, **kwargs):
-    f, axs = plt.subplots(1, 1, )
-    p_sens = run_results['p_sens'][:, mu_idx, :]
+def plot_all_overlaid(run_results, simulation, save_path=None, **kwargs):
     n_sensory = simulation.N_sensory
     n_sensory_nets = simulation.N_sensory_nets
-    x_ff = run_results['x_ff']  # shape should be t x n_rand x n_sensory * n_sensory_nets
-    x_ff = x_ff.reshape(x_ff.shape[0], n_sensory_nets, n_sensory)
-    u_ff = run_results['u_ff']  # shape should be t x n_rand x n_sensory * n_sensory_nets
-    u_ff = u_ff.reshape(u_ff.shape[0], n_sensory_nets, n_sensory)
-    target_neurons, non_target_neurons = _get_target_sensory_neurons(run_results, mu_idx=mu_idx)
-    target_u_ff = u_ff[1:, mu_idx, target_neurons].mean(1)  # averaging across target neurons
-    non_target_u_ff = u_ff[1:, mu_idx, non_target_neurons].mean(1)
+    f, axs = plt.subplots(n_sensory_nets, 1)
+    for sens_idx, ax in enumerate(axs):
+        spike_times, spike_locations = np.where(run_results['p_sens'][:, sens_idx, :])
+        ax.scatter(spike_times / simulation.sens_nets[0].dt, spike_locations, c='black', s=2, label='spikes')
+        ax.invert_yaxis()
+        if hasattr(simulation, 'amp_ext_background'):
+            indices = [[i for i, value in it] for key, it in
+                       itt.groupby(enumerate(
+                           np.abs(run_results['s_ext'][:, sens_idx, :] - simulation.amp_ext_background).sum(1) != 0),
+                                   key=op.itemgetter(1)) if key != 0]
+        else:
+            indices = [[i for i, value in it] for key, it in
+                       itt.groupby(enumerate(np.abs(run_results['s_ext'][:, sens_idx, :]).sum(1) > 0),
+                                   key=op.itemgetter(1)) if key != 0]
+        for region in indices:
+            ax.axvspan(region[0], region[-1], color='r', alpha=0.2)
 
-    target_x_ff = x_ff[1:, mu_idx, target_neurons].mean(1)  # averaging across target neurons
-    non_target_x_ff = x_ff[1:, mu_idx, non_target_neurons].mean(1)
-    axs.imshow(p_sens.T, cmap='Greys', origin='left')
-    axs.plot(512 * target_x_ff, c='blue', label='target $x^{FF}$')
-    axs.plot(512 * target_u_ff, c='green', label='target $u^{FF}$')
-    axs.plot(512 * target_x_ff * target_u_ff, c='magenta', label='target $u^{FF}x^{FF}$')
-    axs.axvspan(100, 300, color='r', alpha=0.2)
-    axs.axvspan(600, 650, color='r', alpha=0.2)
-    axs.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.show()
+        # plt.legend(bbox_to_anchor=(1.1, 1), loc='upper left')
+        ax.set_xlabel('Time (ms)')
+    f.suptitle('Spiking Activity in All Sensory Networks')
+    if save_path is None:
+        plt.show()
+    else:
+        plt.savefig(save_path)
+        plt.close()
+
+def plot_overlaid(run_results, simulation, sens_idx=0, save_path=None, **kwargs):
+    f, ax = plt.subplots()
+    # n_sensory = simulation.N_sensory
+    # n_sensory_nets = simulation.N_sensory_nets
+    # x_ff = run_results['x_ff']  # shape should be t x n_rand x n_sensory * n_sensory_nets
+    # x_ff = x_ff.reshape(x_ff.shape[0], n_sensory_nets, n_sensory)
+    # u_ff = run_results['u_ff']  # shape should be t x n_rand x n_sensory * n_sensory_nets
+    # u_ff = u_ff.reshape(u_ff.shape[0], n_sensory_nets, n_sensory)
+    # target_neurons, non_target_neurons = _get_target_sensory_neurons(run_results, sens_idx=sens_idx)
+    # target_u_ff = u_ff[1:, sens_idx, target_neurons].mean(1)  # averaging across target neurons
+    # non_target_u_ff = u_ff[1:, sens_idx, non_target_neurons].mean(1)
+    #
+    # target_x_ff = x_ff[1:, sens_idx, target_neurons].mean(1)  # averaging across target neurons
+    # non_target_x_ff = x_ff[1:, sens_idx, non_target_neurons].mean(1)
+    spike_times, spike_locations = np.where(run_results['p_sens'][:, sens_idx, :])
+    ax.scatter(spike_times/simulation.sens_nets[0].dt, spike_locations, c='black', s=2, label='spikes')
+    ax.invert_yaxis()
+    # time = np.arange(len(target_x_ff))/simulation.sens_nets[0].dt
+    # ax2 = ax.twinx()
+    # ax2.plot(time, target_x_ff, c='blue', label='target $x^{FF}$')
+    # ax2.plot(time, target_u_ff, c='green', label='target $u^{FF}$')
+    # ax2.plot(time, target_x_ff * target_u_ff, c='magenta', label='target $u^{FF}x^{FF}$')
+
+    # ax.axvspan(100, 300, color='r', alpha=0.2)
+    # ax.axvspan(600, 650, color='r', alpha=0.2)
+    if hasattr(simulation, 'amp_ext_background'):
+        indices = [[i for i, value in it] for key, it in
+                   itt.groupby(enumerate(np.abs(run_results['s_ext'][:, sens_idx, :] - simulation.amp_ext_background).sum(1) != 0),
+                              key=op.itemgetter(1)) if key != 0]
+    else:
+        indices = [[i for i, value in it] for key, it in
+                   itt.groupby(enumerate(np.abs(run_results['s_ext'][:, sens_idx, :]).sum(1) > 0),
+                              key=op.itemgetter(1)) if key != 0]
+    for region in indices:
+        ax.axvspan(region[0], region[-1], color='r', alpha=0.2)
+
+    # plt.legend(bbox_to_anchor=(1.1, 1), loc='upper left')
+    plt.title(f'Spiking Activity in Sensory Network {sens_idx}')
+    ax.set_xlabel('Time (ms)')
+    ax.set_ylabel('Sensory Neurons')
+    plt.tight_layout()
+    if save_path is None:
+        plt.show()
+    else:
+        plt.savefig(save_path)
+        plt.close()
 
 def plot_synaptic(run_results, simulation, sens_idx=0, save_path=None, **kwargs):
     n_sensory = simulation.N_sensory
@@ -57,6 +111,7 @@ def plot_synaptic(run_results, simulation, sens_idx=0, save_path=None, **kwargs)
     axs[0].plot(target_u_ff, c='green', label='target $u^{FF}$')
     axs[0].plot(non_target_u_ff, c='limegreen', label='non-target $u^{FF}$')
     axs[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    axs[0].set_xlabel('Time (ms)')
     axs[0].set_title(f'Sensory Network {sens_idx} Average Synaptic Values - feedforward', fontsize=11)
     axs[1].plot(correl_u, label='correlation with $u$')
     axs[1].plot(correl_x, label='correlation with $x$')
@@ -65,6 +120,7 @@ def plot_synaptic(run_results, simulation, sens_idx=0, save_path=None, **kwargs)
                                 '$')
     axs[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     axs[1].set_title(f'Sensory Network {sens_idx} Target Score Correlations - feedback', fontsize=11)
+    axs[1].set_xlabel('Time (ms)')
     plt.tight_layout()
     if save_path is None:
         plt.show()
@@ -257,18 +313,24 @@ def save_all_plots(run_stats_df, loaded_only=True):
         # sensory network plots
         for sens_idx in range(simulation.N_sensory_nets):
             if (loaded_only and simulation.mus[sens_idx] is not None) or (not loaded_only):
-                    plot_r_sens(run_results, sens_idx=sens_idx, save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_r.png'))
-                    plot_s_sens(run_results, sens_idx=sens_idx, save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_s.png'))
-                    plot_p_sens(run_results, sens_idx=sens_idx, save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_p.png'))
-                    plot_s_ext(run_results, sens_idx=sens_idx, save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_s_ext.png'))
-            if simulation.mus[sens_idx] is not None:
+                plot_r_sens(run_results, sens_idx=sens_idx, save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_r.png'))
+                plot_s_sens(run_results, sens_idx=sens_idx, save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_s.png'))
+                plot_p_sens(run_results, sens_idx=sens_idx, save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_p.png'))
+                plot_s_ext(run_results, sens_idx=sens_idx, save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_s_ext.png'))
+                plot_overlaid(run_results, simulation, sens_idx=sens_idx,
+                              save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_overlaid.png'))
+            if simulation.mus[sens_idx] is not None and hasattr(simulation, 'amp_ext_nonspecific'):
                 plot_synaptic(run_results, simulation, sens_idx=sens_idx, save_path=os.path.join(save_dir, f'sens_net_{sens_idx}_synaptic.png'))
+
+        plot_all_overlaid(run_results, simulation,
+                      save_path=os.path.join(save_dir, f'all_sens_nets_overlaid.png'))
 
         # random network plots
         plot_r_rand(run_results, save_path=os.path.join(save_dir, f'rand_net_r.png'))
         plot_s_rand(run_results, save_path=os.path.join(save_dir, f'rand_net_s.png'))
         plot_p_rand(run_results, save_path=os.path.join(save_dir, f'rand_net_p.png'))
-        plot_s_ext_rand(run_results, save_path=os.path.join(save_dir, f'rand_net_s_ext.png'))
+        if hasattr(simulation, 'amp_ext_nonspecific'):
+            plot_s_ext_rand(run_results, save_path=os.path.join(save_dir, f'rand_net_s_ext.png'))
 
 
 # if __name__ == '__main__':
