@@ -225,7 +225,7 @@ class Simulation():
         # global nonspecific input to random network
         s_ext_rand_T = np.zeros((self.T, self.N_rand))
         s_ext_rand_T[600:650] += self.amp_ext_nonspecific_rand
-        s_ext_rand_T[100:1+stim_T] += self.amp_ext_stim_rand
+        s_ext_rand_T[100:100+stim_T] += self.amp_ext_stim_rand
         s_ext_rand_T += self.amp_ext_background_rand
 
         for t in range(1, self.T):
