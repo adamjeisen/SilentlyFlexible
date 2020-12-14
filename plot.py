@@ -9,7 +9,6 @@ from analysis import _get_target_sensory_neurons, _get_target_score
 from utils import load
 
 def plot_all_overlaid(run_results, simulation, save_path=None, **kwargs):
-    n_sensory = simulation.N_sensory
     n_sensory_nets = simulation.N_sensory_nets
     f, axs = plt.subplots(n_sensory_nets, 1)
     for sens_idx, ax in enumerate(axs):
@@ -17,10 +16,15 @@ def plot_all_overlaid(run_results, simulation, save_path=None, **kwargs):
         ax.scatter(spike_times / simulation.sens_nets[0].dt, spike_locations, c='black', s=2, label='spikes')
         ax.invert_yaxis()
         if hasattr(simulation, 'amp_ext_background'):
-            indices = [[i for i, value in it] for key, it in
-                       itt.groupby(enumerate(
-                           np.abs(run_results['s_ext'][:, sens_idx, :] - simulation.amp_ext_background).sum(1) != 0),
-                                   key=op.itemgetter(1)) if key != 0]
+            if simulation.mus[sens_idx] is not None:
+                indices = [[i for i, value in it] for key, it in
+                           itt.groupby(enumerate(
+                               np.abs(run_results['s_ext'][:, sens_idx, :] - simulation.amp_ext_background).sum(1) != 0),
+                                       key=op.itemgetter(1)) if key != 0]
+                if simulation.amp_ext_background != 0:
+                    ax.axvspan(0, spike_times[-1], color='magenta', alpha=0.1)
+            else:
+                indices = []
         else:
             indices = [[i for i, value in it] for key, it in
                        itt.groupby(enumerate(np.abs(run_results['s_ext'][:, sens_idx, :]).sum(1) > 0),
@@ -31,6 +35,31 @@ def plot_all_overlaid(run_results, simulation, save_path=None, **kwargs):
         # plt.legend(bbox_to_anchor=(1.1, 1), loc='upper left')
         ax.set_xlabel('Time (ms)')
     f.suptitle('Spiking Activity in All Sensory Networks')
+    if save_path is None:
+        plt.show()
+    else:
+        plt.savefig(save_path)
+        plt.close()
+
+def plot_random_overlaid(run_results, simulation, save_path=None, **kwargs):
+    fig = plt.figure()
+    spike_times, spike_locations = np.where(run_results['p_rand'])
+    plt.scatter(spike_times / simulation.sens_nets[0].dt, spike_locations, c='black', s=2, label='spikes')
+    plt.gca().invert_yaxis()
+    if hasattr(simulation, 'amp_ext_background_rand'):
+        indices = [[i for i, value in it] for key, it in
+                   itt.groupby(enumerate(
+                       np.abs(run_results['s_ext_rand'] - simulation.amp_ext_background_rand).sum(1) != 0),
+                       key=op.itemgetter(1)) if key != 0]
+        if simulation.amp_ext_background_rand != 0:
+            plt.axvspan(0, spike_times[-1], color='magenta', alpha=0.1)
+    else:
+        indices = [[i for i, value in it] for key, it in
+                   itt.groupby(enumerate(np.abs(run_results['s_ext_rand']).sum(1) > 0),
+                               key=op.itemgetter(1)) if key != 0]
+    for region in indices:
+        plt.axvspan(region[0], region[-1], color='r', alpha=0.2)
+    plt.title('Spiking Activity in Random Network')
     if save_path is None:
         plt.show()
     else:
@@ -63,9 +92,14 @@ def plot_overlaid(run_results, simulation, sens_idx=0, save_path=None, **kwargs)
     # ax.axvspan(100, 300, color='r', alpha=0.2)
     # ax.axvspan(600, 650, color='r', alpha=0.2)
     if hasattr(simulation, 'amp_ext_background'):
-        indices = [[i for i, value in it] for key, it in
-                   itt.groupby(enumerate(np.abs(run_results['s_ext'][:, sens_idx, :] - simulation.amp_ext_background).sum(1) != 0),
-                              key=op.itemgetter(1)) if key != 0]
+        if simulation.mus[sens_idx] is not None:
+            indices = [[i for i, value in it] for key, it in
+                       itt.groupby(enumerate(np.abs(run_results['s_ext'][:, sens_idx, :] - simulation.amp_ext_background).sum(1) > 0),
+                                  key=op.itemgetter(1)) if key != 0]
+            if simulation.amp_ext_background != 0:
+                ax.axvspan(0, spike_times[-1], color='magenta', alpha=0.1)
+        else:
+            indices = []
     else:
         indices = [[i for i, value in it] for key, it in
                    itt.groupby(enumerate(np.abs(run_results['s_ext'][:, sens_idx, :]).sum(1) > 0),
@@ -329,6 +363,7 @@ def save_all_plots(run_stats_df, loaded_only=True):
         plot_r_rand(run_results, save_path=os.path.join(save_dir, f'rand_net_r.png'))
         plot_s_rand(run_results, save_path=os.path.join(save_dir, f'rand_net_s.png'))
         plot_p_rand(run_results, save_path=os.path.join(save_dir, f'rand_net_p.png'))
+        plot_random_overlaid(run_results, simulation, save_path=os.path.join(save_dir, 'rand_net_overlaid.png'))
         if hasattr(simulation, 'amp_ext_nonspecific'):
             plot_s_ext_rand(run_results, save_path=os.path.join(save_dir, f'rand_net_s_ext.png'))
 
